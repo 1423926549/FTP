@@ -164,8 +164,6 @@ public class FtpConnection extends Thread {
             //判断文件是否存在
             if(!file.exists()) {
                 response("ERROR,文件不存在。");
-            } else if(!strings[1].contains("D:\\FTP")) {
-                response("ERROR,下载文件不合法。");
             } else {
                 //以78接口传输下载文件,创建新的Socket，并且阻塞等待连接 --------------判断端口是否被占用，新建端口集合------------------
                 ServerSocket socketDownload = new ServerSocket(78);

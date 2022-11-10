@@ -248,14 +248,15 @@ public class FtpClient {
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(getSocket().getInputStream()));
         BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(getSocket().getOutputStream()));
         //下载命令的发送
+        System.out.println("DOWNLOAD," + filePath);
         request(bufferedWriter , "DOWNLOAD," + filePath);
         //合法文件 连接对应的接口
-        Socket  socketDownload = new Socket(serviceIP , 78);
+        Socket socketDownload = new Socket(serviceIP , 78);
         //数据传输时间不得超过一分钟
         socketDownload.setSoTimeout(60000);
         //System.out.println(bufferedReader.readLine());
         //默认存储路径
-        String storePath = "D:" + File.separator + "FTPDOWNLOAD" + File.separator +  fileName;
+        String storePath = "D:" + File.separator + "FTPDownload" + File.separator +  fileName;
         System.out.println("存储路径为：" + storePath);
         File file = new File(storePath);
         if(file.exists())

@@ -1,10 +1,7 @@
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.ListView;
-import javafx.scene.control.RadioButton;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -34,6 +31,8 @@ public class Client {
     @FXML
     private ListView<RadioButton> fileList;
 
+    //单选组
+    ToggleGroup toggleGroup = new ToggleGroup();
 
     //通讯套接字
     public static Socket socket = null;
@@ -99,13 +98,13 @@ public class Client {
             request(bufferedWriter, "UPLOAD," + "D:/FTP/" + file.getName());
             //等待服务器连接
             uploadFileSocket = fileSocket.accept();
-            try {
-                //文件输入流
-                BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(file));
-                //Socket输出流
-                //考虑使用新的Socket创建连接实现文件的传输
-                BufferedOutputStream outputStream = new BufferedOutputStream(uploadFileSocket.getOutputStream());
-
+            try(
+                    //文件输入流
+                    BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(file));
+                    //Socket输出流
+                    //考虑使用新的Socket创建连接实现文件的传输
+                    BufferedOutputStream outputStream = new BufferedOutputStream(uploadFileSocket.getOutputStream());
+            ) {
                 byte[] bytes = new byte[inputStream.available()];
                 int i = 0;
                 while ((i = inputStream.read(bytes)) != -1) {
@@ -124,6 +123,9 @@ public class Client {
         }
     }
 
+    /**
+     * 下载文件
+     */
     public void downloadFile() {
         try {
             Stage stage = new Stage();
@@ -131,23 +133,59 @@ public class Client {
             DirectoryChooser directoryChooser = new DirectoryChooser();
             // 选择下载到的目录
             File dir = directoryChooser.showDialog(stage);
-            System.out.println(dir.getPath());
+            System.out.println("下载目录：" + dir.getPath());
 
             // 下载文件
-            //拼接文件的下载地址
-            String fileName = "";
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            // 获取选中的按钮
+            RadioButton selectedToggle = (RadioButton) toggleGroup.getSelectedToggle();
+            if (selectedToggle == null) {
+                System.out.println("请选择文件！！！");
+                return;
+            }
+            // 获取需要下载的文件名  去除左右空格
+            String fileName = selectedToggle.getText().trim();
+            System.out.println(fileName);
+            // 获取输出流
             BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-            //下载命令的发送
-            request(bufferedWriter , "DOWNLOAD," + fileName);
+            // 向服务器发送下载命令
+            request(bufferedWriter , "DOWNLOAD,D:/FTP/" + fileName);
             //合法文件 连接对应的接口
-            Socket  socketDownload = new Socket(serviceIP , 78);
+            Socket socketDownload = new Socket(serviceIP , 78);
             //数据传输时间不得超过一分钟
             socketDownload.setSoTimeout(60000);
-            //System.out.println(bufferedReader.readLine());
-            //默认存储路径
-            String storePath = "D:" + File.separator + "FTPDOWNLOAD" + File.separator +  fileName;
+            // 设置下载路径
+            String storePath = dir.getPath() + File.separator +  fileName;
             System.out.println("存储路径为：" + storePath);
+
+            File file = new File(storePath);
+            if(file.exists()) {  // 判断是否已经存在该文件，如果存在，先删除
+                file.delete();
+            }
+            try(
+                    //创建文件输入输出流
+                    BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));
+                    BufferedInputStream in = new BufferedInputStream(socketDownload.getInputStream())
+            ) {
+                while (in.available() == 0) {
+                    Thread.sleep(1000);
+                    System.out.println("等待服务器端发送数据...");
+                }
+                System.out.println("文件流大小为：" + in.available());
+                int i = 0;
+                // 下载服务器传输过来的数据
+                byte[] bytes = new byte[in.available()];
+                while ((i = in.read(bytes)) != -1) {
+                    out.write(bytes , 0 , i);
+                }
+                out.flush();
+                System.out.println("文件下载成功");
+            } catch (Exception e) {
+                System.out.println("文件下载失败");
+            } finally {
+                // 释放资源
+                if(socketDownload != null) socketDownload.close();
+            }
+
         } catch (Exception e) {
             System.out.println("取消上传");
         }
@@ -166,7 +204,7 @@ public class Client {
         request(bufferedWriter, "LIST");
         // 接收服务器返回的列表信息  列表形式的字符串
         String response = bufferedReader.readLine();
-        System.out.println("resp: " + response);
+        //System.out.println("resp: " + response);
 
         // 处理接收的信息
         // 去掉左右两边括号
@@ -177,7 +215,6 @@ public class Client {
         String[] resStr = response.split(",");
         // 用于存储文件列表的单选框列表
         ObservableList<RadioButton> items = FXCollections.observableArrayList();
-        ToggleGroup toggleGroup = new ToggleGroup();  //单选组
 
         for (String fileName : resStr) {
             //System.out.println(fileName);
