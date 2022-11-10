@@ -1,3 +1,4 @@
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -35,14 +36,14 @@ public class Client {
     ToggleGroup toggleGroup = new ToggleGroup();
 
     //通讯套接字
-    public static Socket socket = null;
+    public Socket socket = null;
     //通讯的输入输出流
-    public static BufferedReader bufferedReader = null;
-    public static BufferedWriter bufferedWriter = null;
+    public BufferedReader bufferedReader = null;
+    public BufferedWriter bufferedWriter = null;
     //服务端的IP
-    public static String serviceIP;
+    public String serviceIP;
     // 连接端口
-    public static int port;
+    public int port;
     // 传输数据的套接字
     public ServerSocket fileSocket;
     // 文件上传服务器连接
@@ -112,6 +113,15 @@ public class Client {
                 }
                 //一次发送完所有数据
                 outputStream.flush();
+                // 获取返回信息
+                Platform.runLater(() -> {
+                    try {
+                        System.out.println(bufferedReader.readLine());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -146,7 +156,7 @@ public class Client {
             String fileName = selectedToggle.getText().trim();
             System.out.println(fileName);
             // 获取输出流
-            BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+            bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             // 向服务器发送下载命令
             request(bufferedWriter , "DOWNLOAD,D:/FTP/" + fileName);
             //合法文件 连接对应的接口
@@ -162,14 +172,31 @@ public class Client {
                 file.delete();
             }
             try(
-                    //创建文件输入输出流
+                    //创建文件输出流
                     BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file));
+                    // 获取文件的输入流
                     BufferedInputStream in = new BufferedInputStream(socketDownload.getInputStream())
             ) {
                 while (in.available() == 0) {
                     Thread.sleep(1000);
                     System.out.println("等待服务器端发送数据...");
                 }
+
+                // 获取服务器响应信息
+                Platform.runLater(() -> {
+                    try {
+                        String msg = bufferedReader.readLine();
+                        // 判断服务器是否传输成功
+                        if (msg.startsWith("ERROR")) {
+                            System.out.println(msg.split(",")[1]);
+                        } else {
+                            System.out.println(msg);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+
                 System.out.println("文件流大小为：" + in.available());
                 int i = 0;
                 // 下载服务器传输过来的数据
@@ -217,13 +244,18 @@ public class Client {
         ObservableList<RadioButton> items = FXCollections.observableArrayList();
 
         for (String fileName : resStr) {
-            //System.out.println(fileName);
+            if (fileName.equals("")) continue;
+            System.out.println(fileName);
             RadioButton radioButton = new RadioButton(fileName);
             radioButton.setToggleGroup(toggleGroup);  // 加入同一个单选泽，否则会有多选效果
             items.add(radioButton);
         }
 
-        fileList.setItems(items);
+        if (items.size() != 0) {
+            System.out.println(items.size());
+            fileList.setItems(items);
+        }
+
     }
 
     /**
@@ -241,11 +273,16 @@ public class Client {
     }
 
     /**
-     * 退出主界面
+     * 退出
      */
     public void exit() throws IOException {
+        bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+        request(bufferedWriter, "EXIT");  // 告诉服务器自己退出了
         connectPage.setVisible(true);
         mainPage.setVisible(false);
+
+        // 释放资源
         socket.close();
+        bufferedWriter.close();
     }
 }

@@ -28,7 +28,7 @@ public class FtpConnection extends Thread {
         try {
             System.out.println(clientIP + " connected! ");
             //读取操作阻塞三秒 设置超时时间为5分钟
-            socket.setSoTimeout(300000);
+            //socket.setSoTimeout(300000);  // 超时将断开连接
             //上传文件的输入、输出流
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -38,8 +38,8 @@ public class FtpConnection extends Thread {
                 //在这里被阻塞
                 cmd = reader.readLine();
                 System.out.println("命令为：" + cmd);
-                if(cmd.startsWith("QUIT") || cmd.startsWith("EXIT")) {
-                    System.out.println("已断开连接。");
+                if(cmd.startsWith("EXIT")) {
+                    System.out.println(socket.getInetAddress() + "已断开连接。");
                     break;
                 }
                 handleCmd(cmd);
@@ -79,18 +79,8 @@ public class FtpConnection extends Thread {
         if(s==null || s.equals(""))
             return;
 
-        if(s.startsWith("CWD")) { // 设置当前目录，注意没有检查目录是否有效
-            String[] dir = s.split(" ");
-            String path = dir[1];
-            List<String> list = FileHelper.getAllFileInformation(path);
-            response(list.toString());
-        }
-
-        else if(s.startsWith("LIST")) { // 打印当前目录下所有文件
+        if(s.startsWith("LIST")) { // 打印当前目录下所有文件
             System.out.println("准备获取文件列表");
-//            String[] params = s.split(",");
-//            System.out.println("当前目录为: "  + params[1]);
-            //List<String> list = FileHelper.getAllFileInformation(params[1]);
             // 用于储存文件名字
             List<String> list = new ArrayList<>();
             // 获取"D:/FTP"下的所有文件
@@ -119,9 +109,6 @@ public class FtpConnection extends Thread {
             //数据传输最多阻塞 一分钟
             fileSocket.setSoTimeout(60000);
             System.out.println("已连接到客户端");
-            //在这里发送一个连接成功的消息
-//            response("连接完成，开始传输数据。。。");
-            ArrayList<String> arrayList = new ArrayList<>();
             //传输存储数据 执行循环直到文件传输完毕  ------ 文件过大时考虑分批次传输 ------
             try(
                     BufferedInputStream inputStream = new BufferedInputStream(fileSocket.getInputStream());
@@ -142,10 +129,7 @@ public class FtpConnection extends Thread {
                 }
                 out.flush();
                 System.out.println("上传已完成。");
-
-                arrayList.add("UPLOAD");
-                arrayList.add("上传成功。");
-                response(arrayList.toString());
+                response("文件上传成功。");
             }catch (IOException e) {
                 if(fileSocket != null) fileSocket.close();
                 response("ERROR,上传文件失败，遇到未知错误。");
@@ -157,7 +141,6 @@ public class FtpConnection extends Thread {
         }
 
         else if(s.startsWith("DOWNLOAD")) {
-            ArrayList<String> arrayList = new ArrayList<>();
             //客户端的下载逻辑
             String[] strings = s.split(",");
             File file = new File(strings[1]);
@@ -168,13 +151,13 @@ public class FtpConnection extends Thread {
                 //以78接口传输下载文件,创建新的Socket，并且阻塞等待连接 --------------判断端口是否被占用，新建端口集合------------------
                 ServerSocket socketDownload = new ServerSocket(78);
                 Socket fileSocket = socketDownload.accept();
-//                response("连接已就绪。");
                 try(
                         //文件输入流
                         BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
                         //套接字输出流
                         BufferedOutputStream out = new BufferedOutputStream(fileSocket.getOutputStream())
                 ) {
+                    // 将字节流传输给客户端
                     int i = 0;
                     byte[] bytes = new byte[in.available()];
                     while ((i = in.read(bytes)) != -1) {
@@ -182,11 +165,7 @@ public class FtpConnection extends Thread {
                     }
                     out.flush();
                     System.out.println("数据发送完成。。。");
-                    arrayList.add("DOWNLOAD");
-                    arrayList.add("下载成功");
-                    response(arrayList.toString());
-                }catch (IOException e) {
-                    e.printStackTrace();
+                    response("文件传输成功");
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
@@ -197,7 +176,7 @@ public class FtpConnection extends Thread {
         }
 
         else {
-            response("ERROR,没有匹配的命令。。。"); // 没有匹配的命令，输出错误信息
+            System.out.println("ERROR,没有匹配的命令。。。"); // 没有匹配的命令，输出错误信息
         }
     }
 
