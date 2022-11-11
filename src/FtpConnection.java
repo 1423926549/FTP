@@ -103,6 +103,7 @@ public class FtpConnection extends Thread {
             //System.out.println("上传文件请求开始...");
             //获取文件参数 构建文件及其输入流
             String[] strings = s.split(",");
+            String path = "D:/FTP/" + strings[1];
             //----------这里要进行同名验证 如果文件已存在则需要进行同名验证 ---------
             //连接客户端的IP套接字 默认为78接口传输数据
             Socket fileSocket = new Socket(this.clientIP , 78);
@@ -113,7 +114,7 @@ public class FtpConnection extends Thread {
             try(
                     BufferedInputStream inputStream = new BufferedInputStream(fileSocket.getInputStream());
                     //文件输入流
-                    BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(new File(strings[1])))
+                    BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(new File(path)))
             ) {
                 while (inputStream.available() == 0) {
                     //直到有数据发送过来 一秒执行一次
@@ -143,7 +144,8 @@ public class FtpConnection extends Thread {
         else if(s.startsWith("DOWNLOAD")) {
             //客户端的下载逻辑
             String[] strings = s.split(",");
-            File file = new File(strings[1]);
+            String path = "D:/FTP/" + strings[1];
+            File file = new File(path);
             //判断文件是否存在
             if(!file.exists()) {
                 response("ERROR,文件不存在。");

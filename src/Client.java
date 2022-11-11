@@ -95,8 +95,8 @@ public class Client {
             bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             // 发送请求
-            System.out.println("文件上传路径为：" + "D:/FTP/" + file.getName());
-            request(bufferedWriter, "UPLOAD," + "D:/FTP/" + file.getName());
+            System.out.println("文件上传路径为：" + file.getName());
+            request(bufferedWriter, "UPLOAD," + file.getName());
             //等待服务器连接
             uploadFileSocket = fileSocket.accept();
             try(
@@ -158,7 +158,7 @@ public class Client {
             // 获取输出流
             bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             // 向服务器发送下载命令
-            request(bufferedWriter , "DOWNLOAD,D:/FTP/" + fileName);
+            request(bufferedWriter , "DOWNLOAD," + fileName);
             //合法文件 连接对应的接口
             Socket socketDownload = new Socket(serviceIP , 78);
             //数据传输时间不得超过一分钟
